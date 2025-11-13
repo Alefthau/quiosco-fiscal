@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Resumen Fiscal Anual - Quiosco San Pedro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 2em; background: #f4f4f4; }
+    h1 { color: #333; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1em; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: center; }
+    th { background: #eee; }
+    .totales { margin-top: 2em; background: #fff; padding: 1em; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Resumen Fiscal Anual - Quiosco San Pedro</h1>
+  <div id="tabla"></div>
+  <div class="totales" id="totales"></div>
+
+  <script>
+    const supabase = supabase.createClient(
+      "https://TU_PROJECT_URL.supabase.co", // ← Sustituye con tu URL
+      "TU_ANON_KEY" // ← Sustituye con tu clave pública
+    );
+
+    async function cargarDatos() {
+      const { data, error } = await supabase
+        .from("resultados_fiscales")
+        .select("*")
+        .order("trimestre", { ascending: true });
+
+      if (error) {
+        document.getElementById('tabla').innerHTML = `<p style="color:red;">Error al cargar datos: ${error.message}</p>`;
+        return;
+      }
+
+      let html = `<table>
+        <tr>
+          <th>Trimestre</th>
+          <th>Ingresos</th>
+          <th>Gastos</th>
+          <th>Total Directa</th>
+          <th>Total Objetiva</th>
+          <th>Recomendado</th>
+        </tr>`;
+
+      let totalDirecta = 0, totalObjetiva = 0;
+
+      data.forEach(row => {
+        html += `<tr>
+          <td>${row.trimestre}</td>
+          <td>${row.ingresos.toFixed(2)} €</td>
+          <td>${row.gastos.toFixed(2)} €</td>
+          <td>${row.total_directa.toFixed(2)} €</td>
+          <td>${row.total_objetiva.toFixed(2)} €</td>
+          <td>${row.metodo_recomendado}</td>
+        </tr>`;
+        totalDirecta += row.total_directa;
+        totalObjetiva += row.total_objetiva;
+      });
+
+      html += `</table>`;
+      document.getElementById('tabla').innerHTML = html;
+
+      document.getElementById('totales').innerHTML = `
+        <h2>Totales Anuales</h2>
+        <p><strong>Total por estimación directa:</strong> ${totalDirecta.toFixed(2)} €</p>
+        <p><strong>Total por estimación objetiva:</strong> ${totalObjetiva.toFixed(2)} €</p>
+        <p><strong>Conclusión:</strong> ${
+          totalDirecta < totalObjetiva
+            ? "Conviene más la estimación directa."
+            : totalDirecta > totalObjetiva
+              ? "Conviene más la estimación objetiva."
+              : "Ambos métodos resultan equivalentes."
+        }</p>
+      `;
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>
