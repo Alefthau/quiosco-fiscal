@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Comparador Fiscal - Quiosco San Pedro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 2em; background: #f4f4f4; }
+    h1 { color: #333; }
+    label, input, select { display: block; margin: 0.5em 0; }
+    button { margin-top: 1em; padding: 0.5em 1em; }
+    #resultado { margin-top: 2em; background: #fff; padding: 1em; border-radius: 5px; }
+    .explicacion { font-size: 0.9em; color: #555; margin-bottom: 1em; }
+  </style>
+</head>
+<body>
+  <h1>Comparador Fiscal - Quiosco San Pedro</h1>
+  <div class="explicacion">
+    Esta herramienta compara dos formas de calcular tus impuestos trimestrales:<br><br>
+    <strong>Estimación directa simplificada:</strong> basada en tus ingresos reales menos gastos.<br>
+    <strong>Estimación objetiva:</strong> usa módulos fijos definidos por Hacienda.<br><br>
+    Calcula IVA e IRPF y guarda los resultados en tu base de datos Supabase.
+  </div>
+
+  <form id="formulario">
+    <label>Trimestre (ej. 2025-T1): <input type="text" name="trimestre" required></label>
+    <label>Ingresos (€): <input type="number" name="ingresos" required></label>
+    <label>Gastos (€): <input type="number" name="gastos" required></label>
+    <button type="submit">Calcular y guardar</button>
+  </form>
+
+  <div id="resultado"></div>
+
+  <script>
+    const supabase = supabase.createClient(
+      "https://sbxtduvvdtmybouhsrda.supabase.co", // ← Sustituye con tu URL
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNieHRkdXZ2ZHRteWJvdWhzcmRhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTUxNjksImV4cCI6MjA3NzkzMTE2OX0.Y5P6tjjUU6d5qx2nI7r5gaO-Ac7jV2BkWpJClDIKe_k" // ← Sustituye con tu clave pública
+    );
+
+    document.getElementById('formulario').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const datos = Object.fromEntries(new FormData(e.target));
+      const ingresos = parseFloat(datos.ingresos);
+      const gastos = parseFloat(datos.gastos);
+      const trimestre = datos.trimestre;
+
+      const beneficio = ingresos - gastos;
+      const iva_directa = beneficio * 0.21;
+      const irpf_directa = beneficio * 0.20;
+      const total_directa = iva_directa + irpf_directa;
+
+      const base_objetiva = 1500;
+      const iva_objetiva = base_objetiva * 0.21;
+      const irpf_objetiva = base_objetiva * 0.13;
+      const total_objetiva = iva_objetiva + irpf_objetiva;
+
+      let metodo = "";
+      if (total_directa < total_objetiva) {
+        metodo = "Estimación directa simplificada";
+      } else if (total_directa > total_objetiva) {
+        metodo = "Estimación objetiva";
+      } else {
+        metodo = "Equivalente";
+      }
+
+      const { error } = await supabase.from("resultados_fiscales").insert([{
+        trimestre,
+        ingresos,
+        gastos,
+        iva_directa,
+        irpf_directa,
+        total_directa,
+        iva_objetiva,
+        irpf_objetiva,
+        total_objetiva,
+        metodo_recomendado: metodo
+      }]);
+
+      document.getElementById('resultado').innerHTML = error
+        ? `<p style="color:red;">Error al guardar: ${error.message}</p>`
+        : `
+          <h2>Resultado guardado</h2>
+          <p><strong>Método recomendado:</strong> ${metodo}</p>
+          <p>Total estimación directa: ${total_directa.toFixed(2)} €</p>
+          <p>Total estimación objetiva: ${total_objetiva.toFixed(2)} €</p>
+        `;
+    });
+  </script>
+</body>
+</html>
